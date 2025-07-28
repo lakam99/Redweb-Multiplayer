@@ -1,19 +1,19 @@
 # Redweb Multiplayer – Redsea MVP
 
-**Redsea** is a plug-and-play multiplayer backend engine built on top of [RedWeb](https://www.npmjs.com/package/redweb), offering dynamic WebSocket routing and ready-to-extend lobby support for indie game developers.
+**Redsea** is a plug-and-play multiplayer backend engine built on top of [RedWeb](https://www.npmjs.com/package/redweb), offering dynamic WebSocket routing, modular handler logic, and ready-to-extend multiplayer support for indie game developers.
 
-This repo provides the MVP implementation of Redsea – a multiplayer-ready lobby server with extensible handlers and real-time communication using RedWeb's powerful architecture.
+This repository serves as an MVP demo showcasing RedWeb’s architecture in a multiplayer context — with real-time lobby management, messaging, and match logic, all using simple JSON over WebSockets.
 
 ---
 
 ## 🚀 Features
 
-- 🔌 WebSocket server via RedWeb
-- 🧠 Lobby-based architecture with player tracking
-- 🗣 Real-time chat and movement broadcast
-- ⚙️ Easily extendable via base class (`LobbyHandler`)
-- 🧱 Movement example via `MovementLobbyHandler`
-- 🧪 Dev-friendly: join, move, and chat without authentication
+- 🔌 **WebSocket server** via RedWeb
+- 🧱 **Modular message handling** with RedWeb handlers
+- 🎮 **Player registry** with join/leave hooks and broadcasting
+- ⏱ **Match service** with start/end conditions (auto-timer)
+- 🧠 Built-in event-driven architecture using `SocketRegistry`
+- 🛠 Extendable: add your own logic with clean base classes
 
 ---
 
@@ -26,106 +26,167 @@ npm install
 node index.js
 ````
 
-> Server runs on `ws://localhost:3000/`
+Server runs at `ws://localhost:3000/`
 
 ---
 
 ## 🧠 Architecture Overview
 
-### Core Files:
+### Core Files
 
-| File                      | Purpose                                                           |
-| ------------------------- | ----------------------------------------------------------------- |
-| `index.js`                | Starts the RedWeb socket server on port 3000                      |
-| `DefaultRoute.js`         | Registers the root WebSocket path `/` with a lobby handler        |
-| `LobbyHandler.js`         | Core lobby engine: handles players, join, chat, etc.              |
-| `MovementLobbyHandler.js` | Extends lobby for movement support (`move`, `position`, `vector`) |
+| File                            | Purpose                                                              |
+| ------------------------------- | -------------------------------------------------------------------- |
+| `index.js`                      | Bootstraps the RedWeb `SocketServer`                                 |
+| `DefaultRoute.js`               | Declares the root WebSocket path `/` and loads all handlers/services |
+| `handlers/JoinHandler.js`       | Handles player joining and registry addition                         |
+| `handlers/ChatHandler.js`       | Sends chat messages to all other clients                             |
+| `handlers/MoveHandler.js`       | Updates and broadcasts player position/vector                        |
+| `handlers/MatchHandler.js`      | Emits messages like match status or win conditions                   |
+| `services/MatchService.js`      | Autonomous logic: match start/end when max players are reached       |
+| `handlers/GetPlayersHandler.js` | Sends sanitized list of players back to the requesting socket        |
+| `handlers/PlayerRegistry.js`    | Tracks connected players using event-driven logic                    |
 
 ---
 
-## 📡 Example Usage
+## 📡 WebSocket Message Types
 
-### WebSocket Client Messages
+Every handler listens for a `type` field in incoming messages.
 
-#### Join
+### 📥 Join (Minimum Payload)
+
+```json
+{ "type": "join" }
+```
+
+Optionally include:
 
 ```json
 {
-  "action": "join",
+  "type": "join",
   "id": "optional-custom-id",
   "position": { "x": 0, "y": 0, "z": 0 },
   "vec": { "x": 1, "y": 0, "z": 0 }
 }
 ```
 
-#### Chat
+> If required fields are missing, the handler will return a meaningful error. Otherwise, defaults like a generated ID or (0,0,0) spawn position may be used.
+
+---
+
+### 💬 Chat
 
 ```json
 {
-  "action": "chat",
-  "id": "player-id",
+  "type": "chat",
   "message": "Hello everyone!"
 }
 ```
 
-#### Move
+---
+
+### 🎮 Move
 
 ```json
 {
-  "action": "move",
+  "type": "move",
   "position": { "x": 5, "y": 0, "z": 2 },
   "vector": { "x": 0, "y": 0, "z": 1 }
 }
 ```
 
-#### Disconnect
+---
+
+### 🧍 Get Players
 
 ```json
-{
-  "action": "disconnect",
-  "id": "player-id"
-}
+{ "type": "getPlayers" }
 ```
+
+Returns list of currently joined players.
+
+---
+
+### 🛑 Disconnect
+
+```json
+{ "type": "disconnect" }
+```
+
+Manually trigger player removal (usually automatic on socket close).
 
 ---
 
 ## 🧩 Extendability
 
-You can subclass `LobbyHandler` to define custom behavior:
+Handlers extend `BaseHandler` and can register to a `type` like this:
 
 ```js
-class MyCustomGameHandler extends LobbyHandler {
-    onMessage(socket, data) {
-        if (data.action === 'custom_event') {
-            // Handle your game logic
-        } else {
-            super.onMessage(socket, data);
-        }
+class MyHandler extends BaseHandler {
+    constructor() {
+        super('custom_event'); // Listens for { type: "custom_event" }
+    }
+
+    onMessage(socket, message) {
+        // Your logic here
+        socket.sendJson({ type: "response", msg: "Handled!" });
     }
 }
 ```
 
-Then bind it in your route definition.
+Services extend `SocketService` and can run game loops or timers:
+
+```js
+class MyGameLoop extends SocketService {
+    constructor() {
+        super('myLoop', 1000); // Run every second
+    }
+
+    onInit(route) {
+        // Access clients, registries, etc.
+    }
+
+    onTick() {
+        // Game logic
+    }
+}
+```
+
+---
+
+## 🧠 Behind the Scenes
+
+### Player Registry
+
+Backed by `SocketRegistry`, it provides:
+
+* Event-driven lifecycle (`playerJoined`, `playerLeft`, `maxPlayersReached`)
+* Max player limits
+* Player broadcasting
+* Join/leave validation hooks
+
+### Match Service
+
+Starts a match timer when lobby is full. Emits `matchStarted` and `matchOver` messages via `MatchHandler`. Can be replaced or extended to support your own win conditions, rounds, etc.
 
 ---
 
 ## 📈 Roadmap
 
-* [ ] Lobby ID routing (e.g. `/lobby/:id`)
+* [ ] Route-based lobby IDs (e.g. `/lobby/:id`)
 * [ ] Lobby timeout cleanup
-* [ ] Built-in reconnection logic
 * [ ] Sample HTML multiplayer client
-* [ ] Matchmaking & queue system
-* [ ] Persistent memory or Redis support
+* [ ] Built-in matchmaking & queuing
+* [ ] Redis-backed persistence
 
 ---
 
 ## 🧠 Philosophy
 
-Redsea is built to help developers prototype and deploy multiplayer systems with **minimal overhead**, no vendor lock-in, and full control. Build fast, extend freely.
+Redsea helps you **prototype multiplayer games fast**, using readable, clean JavaScript with full control. No vendor lock-in, no giant SDKs, no mystery boxes.
 
 ---
 
 ## 🛠 Author
 
-Developed by [@lakam99](https://github.com/lakam99) using [RedWeb](https://www.npmjs.com/package/redweb)
+Developed by [@lakam99](https://github.com/lakam99)
+Powered by [RedWeb](https://www.npmjs.com/package/redweb)
