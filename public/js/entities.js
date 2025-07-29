@@ -1,8 +1,9 @@
 // entities.js
-import { SIZE } from "./config.js";
+import { SIZE, MAX_HP } from "./config.js";
 import { radToDeg } from "./utils.js";
 
 export const remotePlayers = new Map();
+export const remoteBars    = {};
 
 export function spawnBox(position, col, tag, isStatic = false) {
   return add([
@@ -28,17 +29,21 @@ export function spawnHPBar(target) {
   ]);
 }
 
-export function ensureRemote(id, pos, rad = 0) {
+export function ensureRemote(id, pos, rad = 0, hp = MAX_HP) {
   if (remotePlayers.has(id)) return;
   const box = spawnBox(vec2(pos.x, pos.y), rgb(rand(50,255), rand(50,255), rand(50,255)), "remote", true);
   box.angle = radToDeg(rad);
-  box.data = { targetPos: vec2(pos.x, pos.y), targetRad: rad };
+  box.data = { id, targetPos: vec2(pos.x, pos.y), targetRad: rad, hp };
   remotePlayers.set(id, box);
+
+  const bar = spawnHPBar(box);
+  remoteBars[id] = bar;
 }
 
-export function updateRemote(id, pos, rad) {
+export function updateRemote(id, pos, rad, hp) {
   const rp = remotePlayers.get(id);
   if (!rp) return;
   rp.data.targetPos = vec2(pos.x, pos.y);
   rp.data.targetRad = rad;
+  if (typeof hp === "number") rp.data.hp = hp;
 }

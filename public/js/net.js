@@ -1,5 +1,6 @@
 // net.js
 import { WS_URL } from "./config.js";
+import { spawnBullet } from "./bullet.js";
 
 const ws = new WebSocket(WS_URL);
 const listeners = new Map();
@@ -21,3 +22,7 @@ ws.addEventListener("message", (e) => {
 export function onOpen(cb) {
   ws.addEventListener("open", cb);
 }
+
+on("player_shot", ({ shooterId, position, direction }) => {
+  spawnBullet(position, direction, "remote_bullet", shooterId);
+});
