@@ -1,28 +1,31 @@
 // ShootHandler.js
 
 const { BaseHandler } = require("redweb");
+const registry = require("./PlayerRegistry");
 
 class ShootHandler extends BaseHandler {
   constructor() {
     super("shoot");
   }
 
-  handle(socket, data, services) {
-    const player = socket.data.player;
-    if (!player) return;
+  onMessage(socket, data) {
+    const player = registry.getBySocket(socket);
+    if (!player) {
+      socket.sendJson({ type: "error", message: "Player not found" });
+      return;
+    }
 
     const { position, direction } = data;
     if (!position || !direction) return;
 
-    // Broadcast bullet event to other players
-    services.registry.broadcast(
+    registry.broadcast(
       {
         type: "player_shot",
         shooterId: player.id,
         position,
         direction,
       },
-      socket // do not echo to sender
+      socket // don't echo to sender
     );
   }
 }
