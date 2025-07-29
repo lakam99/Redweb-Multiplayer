@@ -5,9 +5,9 @@ import { radToDeg, lerpVec2, lerp } from "./utils.js";
 import { send, on, onOpen } from "./net.js";
 import { remotePlayers, remoteBars, ensureRemote, updateRemote, spawnBox, spawnHPBar } from "./entities.js";
 import { setupInput } from "./input.js";
-import { setupShooting } from "./shooting.js";
+import { handleShoot } from "./shooting.js";
 
-kaboom({ background: [15, 15, 25], width: 800, height: 600 });
+const k = kaboom({ background: [15, 15, 25], width: 800, height: 600 });
 
 /* ── Local Player ─────────────────────────── */
 const playerId   = crypto.randomUUID();
@@ -94,5 +94,4 @@ onUpdate(() => {
 });
 
 /* ── Modules: Input & Shooting ─────────────── */
-setupInput(localPlayer, faceRad, broadcastState);
-setupShooting(localPlayer, playerId);
+setupInput(k, localPlayer, faceRad, broadcastState, () => handleShoot(localPlayer, playerId));
