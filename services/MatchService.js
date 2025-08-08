@@ -12,9 +12,16 @@ class MatchService extends SocketService {
     super.onInit(route);
 
     // start when player cap hit
-    registry.on('maxPlayersReached', () => {
-      if (!this.active) this.startMatch();
-    });
+    try {
+      registry.on && registry.on('maxPlayersReached', () => {
+        if (!this.active) this.startMatch();
+      });
+    } catch {}
+
+    // or start if there are already players on init with a finite cap
+    if (Number.isFinite(registry.maxPlayers) && registry.maxPlayers > 0 && registry.items?.length >= registry.maxPlayers) {
+      this.startMatch();
+    }
   }
 
   startMatch() {
