@@ -13,7 +13,7 @@ export class ClientEntity {
 
   update(deltaTime) {
     // base movement: position += vector * speed * dt
-    if (this.speed && (this.vector.x || this.vector.y)) {
+    if (this.speed && Number.isFinite(this.vector.x) && Number.isFinite(this.vector.y) && (this.vector.x || this.vector.y)) {
       this.position.x += this.vector.x * this.speed * deltaTime;
       this.position.y += this.vector.y * this.speed * deltaTime;
     }

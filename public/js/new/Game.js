@@ -20,11 +20,8 @@ export class Game {
     const k = this.k;
     const { add, rect, text, pos, color, anchor, onUpdate, dt, vec2 } = k;
 
-    // HUD
-    add([text("Redsea Demo"), pos(10, 10), color(255,255,255), anchor("topleft")]);
-
     // connect
-    await Net.connect(WS_URL);
+    try { await Net.connect(WS_URL); } catch (e) { console.warn('WS connect failed, will retry automatically'); }
 
     // create local player
     this.player = this.entityManager.spawn("player", this.playerId, {
@@ -33,11 +30,20 @@ export class Game {
       hp: 3,
     });
 
-    // join
-    Net.send("join", {
-      id: this.playerId,
-      position: this.player.position,
-    });
+    this.player.isLocal = true;
+
+    // join (retry until connected)
+    this.joined = false;
+    const tryJoin = () => {
+      const s = Net.socket;
+      if (this.joined) return;
+      if (s && s.readyState === WebSocket.OPEN) {
+        Net.send("join", { id: this.playerId, position: this.player.position });
+        this.joined = true;
+      }
+    };
+    tryJoin();
+    setInterval(tryJoin, 1000);
 
     // network
     setupNetworkHandlers(

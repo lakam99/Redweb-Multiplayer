@@ -18,11 +18,10 @@ class NetClient {
       if (list) for (const fn of list) try { fn(msg); } catch {}
     };
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       this.socket.onopen = () => resolve();
-      this.socket.onerror = (e) => reject(e);
+      this.socket.onerror = () => resolve();
       this.socket.onclose = () => {
-        // simple auto-reconnect
         setTimeout(() => { try { this.connect(this._url); } catch {} }, 1500);
       };
     });

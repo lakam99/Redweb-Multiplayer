@@ -5,11 +5,17 @@ import Net from "./Net.js";
 export function setupPlayerInput(k, localPlayer, getFaceRad, onShoot) {
   const { onMouseMove, onKeyPress, onKeyRelease, isKeyDown, mousePos, vec2, onUpdate } = k;
 
+  function safeUnit(v) {
+    const len = Math.hypot(v.x, v.y);
+    if (len === 0) return vec2(0, 0);
+    return v.scale(1 / len);
+  }
+
   function getMoveVec() {
-    return vec2(
+    return safeUnit(vec2(
       (isKeyDown("d") ? 1 : 0) - (isKeyDown("a") ? 1 : 0),
       (isKeyDown("s") ? 1 : 0) - (isKeyDown("w") ? 1 : 0)
-    ).unit();
+    ));
   }
 
   onMouseMove(() => {
@@ -18,18 +24,34 @@ export function setupPlayerInput(k, localPlayer, getFaceRad, onShoot) {
     Net.send("move", { angle: rad });
   });
 
-  function updateVector() {
-    const mv = getMoveVec();
-    localPlayer.setVector(mv);
-    Net.send("move", { vector: { x: mv.x, y: mv.y } });
+  function pushVector(v) {
+    localPlayer.setVector(v);
+    Net.send("move", { vector: { x: v.x, y: v.y } });
   }
 
-  onKeyPress(["w","a","s","d"], updateVector);
-  onKeyRelease(["w","a","s","d"], updateVector);
+  onKeyPress(["w","a","s","d"], () => pushVector(getMoveVec()));
+  onKeyRelease(["w","a","s","d"], () => pushVector(getMoveVec()));
 
   onUpdate(() => {
-    localPlayer.update(0); // sync sprite angle etc
+    // keep local sprite synced and ensure NaN never creeps in
+    const v = getMoveVec();
+    localPlayer.setVector(v);
   });
 
   k.onClick(() => onShoot?.());
+
+  // Throttled state sync (position + angle + vector) ~10Hz
+  let lastSync = 0;
+  onUpdate(() => {
+    const now = Date.now();
+    if (now - lastSync > 100) {
+      lastSync = now;
+      Net.send("move", {
+        position: { x: localPlayer.position.x, y: localPlayer.position.y },
+        angle: localPlayer.angle,
+        vector: { x: localPlayer.vector.x, y: localPlayer.vector.y },
+      });
+    }
+  });
+
 }

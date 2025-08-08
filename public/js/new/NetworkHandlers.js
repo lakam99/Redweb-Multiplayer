@@ -2,6 +2,10 @@
 import Net from "./Net.js";
 
 export function setupNetworkHandlers(entityManager, localId, spawnBulletVisual, updateLocalHP) {
+  Net.on("joined", () => {
+    // Populate state of players who were already connected
+    Net.send("get-players");
+  });
   Net.on("players_list", (msg) => {
     for (const p of msg.players) {
       if (!entityManager.has(p.id)) {
@@ -24,9 +28,12 @@ export function setupNetworkHandlers(entityManager, localId, spawnBulletVisual, 
     const p = msg.player;
     const ent = entityManager.get(p.id);
     if (!ent) return;
-    if (p.position) ent.setPosition?.(p.position);
-    if (p.vector) ent.setVector?.(p.vector);
-    if (typeof p.angle === "number") ent.setAngle?.(p.angle);
+    if (p.id === localId) {
+      // local echo (ignore or hard-sync if needed)
+      return;
+    }
+    // drive remote via smoothing targets
+    ent.setTarget(p.position, p.angle, p.vector);
   });
 
   Net.on("player_hit", (msg) => {
