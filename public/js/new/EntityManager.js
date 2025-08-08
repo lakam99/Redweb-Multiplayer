@@ -25,6 +25,8 @@ export class EntityManager {
     if (comps) {
       instance.spriteRef = add(comps);
     }
+    // allow entity to attach additional visuals (e.g., HUD labels)
+    try { instance.afterSpawn && instance.afterSpawn(); } catch {}
     return instance;
   }
 
