@@ -15,32 +15,29 @@ class MoveHandler extends BaseHandler {
    *   angle:    Number       // optional – facing direction (rad)
    * }
    */
-  onMessage(socket, msg) {
+  onMessage(socket, msg = {}) {
     const player = registry.getBySocket(socket);
     if (!player) {
       socket.sendJson({ type: "error", message: "Player not found" });
       return;
     }
 
-    /* ─── Core updates ────────────────────────── */
-    if (msg.position) {
-      // setPosition now uses explicit angle if provided
-      player.setPosition(
-        msg.position,
-        msg.vector || player.vector,
-        typeof msg.angle === "number" ? msg.angle : player.angle
-      );
-      return;
-    }
-
     let shouldBroadcast = false;
+
+    if (msg.position) {
+      // setPosition uses explicit angle/vector if provided, else keeps existing
+      const angle = (typeof msg.angle === "number") ? msg.angle : player.angle;
+      const vector = msg.vector ? msg.vector : player.vector;
+      player.setPosition(msg.position, vector, angle);
+      shouldBroadcast = true;
+    }
 
     if (msg.vector) {
       player.setVector(msg.vector);
       shouldBroadcast = true;
     }
 
-    if (typeof msg.angle === "number") {
+    if (typeof msg.angle === "number" && !msg.position) {
       player.angle = msg.angle;
       shouldBroadcast = true;
     }

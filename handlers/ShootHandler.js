@@ -3,20 +3,24 @@
 const { BaseHandler } = require("redweb");
 const registry = require("./PlayerRegistry");
 
+function isVec2(v) {
+  return v && typeof v.x === "number" && typeof v.y === "number";
+}
+
 class ShootHandler extends BaseHandler {
   constructor() {
     super("shoot");
   }
 
-  onMessage(socket, data) {
+  onMessage(socket, data = {}) {
     const player = registry.getBySocket(socket);
     if (!player) {
       socket.sendJson({ type: "error", message: "Player not found" });
       return;
     }
 
-    const { position, direction } = data;
-    if (!position || !direction) return;
+    const position  = data.position  && isVec2(data.position)  ? data.position  : { x: player.position.x, y: player.position.y };
+    const direction = data.direction && isVec2(data.direction) ? data.direction : { x: player.vector.x,   y: player.vector.y };
 
     registry.broadcast(
       {
