@@ -1,6 +1,7 @@
 // MoveHandler.js
 const { BaseHandler } = require("redweb");
 const registry        = require("./PlayerRegistry");
+const { resolveAABBAgainstWalls, clampToBounds } = require("../world/World");
 
 class MoveHandler extends BaseHandler {
   constructor() {
@@ -41,6 +42,13 @@ class MoveHandler extends BaseHandler {
       player.angle = msg.angle;
       shouldBroadcast = true;
     }
+
+    // COLLISION_RESOLVE: enforce authoritative wall & bounds
+    const half = 14; // roughly half player size (keep in sync with client SIZE/2)
+    const aabb = { x: player.position.x - half, y: player.position.y - half, w: half*2, h: half*2 };
+    const fixed = resolveAABBAgainstWalls(aabb);
+    const clamped = clampToBounds({ x: fixed.x + half, y: fixed.y + half }, 800, 600, half);
+    player.setPosition(clamped, player.vector, player.angle);
 
     if (shouldBroadcast) {
       registry.broadcast({

@@ -2,6 +2,7 @@
 import { radToDeg } from "./utils.js";
 
 export class ClientEntity {
+
   constructor(id, position = { x: 0, y: 0 }, angle = 0, vector = { x: 0, y: 0 }) {
     this.id = id;
     this.position = { ...position };
@@ -21,6 +22,13 @@ export class ClientEntity {
     if (this.spriteRef) {
       this.spriteRef.pos = vec2(this.position.x, this.position.y);
       this.spriteRef.angle = radToDeg(this.angle);
+    }
+  }
+
+  destroy() {
+    if (this.spriteRef) {
+      try { this.spriteRef.destroy(); } catch {}
+      this.spriteRef = null;
     }
   }
 

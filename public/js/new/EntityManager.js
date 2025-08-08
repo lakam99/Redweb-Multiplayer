@@ -25,13 +25,15 @@ export class EntityManager {
     if (comps) {
       instance.spriteRef = add(comps);
     }
+    // allow entity to attach additional visuals (e.g., HUD labels)
+    try { instance.afterSpawn && instance.afterSpawn(); } catch {}
     return instance;
   }
 
   despawn(id) {
     const ent = this.entities.get(id);
     if (!ent) return;
-    if (ent.spriteRef) ent.spriteRef.destroy();
+    if (typeof ent.destroy === 'function') ent.destroy(); else if (ent.spriteRef) ent.spriteRef.destroy();
     this.entities.delete(id);
   }
 
