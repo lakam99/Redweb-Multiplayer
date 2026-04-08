@@ -47,3 +47,42 @@ export function setupNetworkHandlers(entityManager, localId, spawnBulletVisual, 
     spawnBulletVisual(msg.position, msg.direction, msg.shooterId);
   });
 }
+
+
+  Net.on("bullet_impact", (msg) => {
+    // 1) Remove bullet by id if it exists locally
+    const b = entityManager.get(msg.bulletId);
+    if (b) entityManager.despawn(msg.bulletId);
+
+    // Skip VFX if disabled or in performance mode
+    if (!VFX.enabled || VFX.performanceMode) return;
+
+    const weapon = (msg.weaponType && VFX.perWeapon[msg.weaponType]) ? VFX.perWeapon[msg.weaponType] : VFX.perWeapon[VFX.defaultWeapon];
+    const { tracerWidth, tracerLife, tracerColor, sparkLife, sparkColor, sparkRadius } = weapon;
+
+    const p1 = vec2(msg.position.x, msg.position.y);
+    const p2 = vec2(msg.impact.x, msg.impact.y);
+
+    // Tracer line
+    add([
+      {
+        life: tracerLife,
+        update() { this.life -= dt(); if (this.life <= 0) this.destroy(); },
+        draw() { color(...tracerColor); drawLine({ p1, p2, width: tracerWidth }); },
+      },
+      z(3)
+    ]);
+
+    // Impact spark
+    add([
+      pos(p2),
+      {
+        r: sparkRadius,
+        life: sparkLife,
+        update() { this.life -= dt(); this.r *= 0.8; if (this.life <= 0) this.destroy(); },
+        draw() { color(...sparkColor); drawCircle({ center: vec2(0,0), radius: this.r }); },
+      },
+      anchor("center"),
+      z(3)
+    ]);
+  });
