@@ -5,6 +5,7 @@ const { MoveHandler } = require("./handlers/MoveHandler");
 const { MatchService } = require("./services/MatchService");
 const { GetPlayersHandler } = require("./handlers/GetPlayersHandler");
 const { ShootHandler } = require("./handlers/ShootHandler");
+const registry = require("./handlers/PlayerRegistry");
 
 class DefaultRoute extends SocketRoute {
     constructor() {
@@ -19,6 +20,13 @@ class DefaultRoute extends SocketRoute {
             allowDuplicateConnections: true,
             services: [MatchService]
         })
+    }
+
+    connectionCloseCallback(socket) {
+        const player = registry.getBySocket(socket);
+        if (player && registry.remove(player)) {
+            registry.broadcast({ type: "player_left", id: player.id });
+        }
     }
 }
 

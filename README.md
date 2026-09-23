@@ -1,6 +1,6 @@
 # Redweb Multiplayer – Redsea MVP
 
-**Redsea** is a plug-and-play multiplayer backend engine built on top of [RedWeb](https://www.npmjs.com/package/redweb), offering dynamic WebSocket routing, modular handler logic, and ready-to-extend multiplayer support for indie game developers.
+**Redsea** is a multiplayer demo built on [Redweb 0.16.4](https://redweb.magnisolution.com/docs/reference/0.16.4/getting-started.md), with WebSocket handlers and a browser client.
 
 This repository serves as an MVP demo showcasing RedWeb’s architecture in a multiplayer context — with real-time lobby management, messaging, and match logic, all using simple JSON over WebSockets.
 
@@ -23,10 +23,12 @@ This repository serves as an MVP demo showcasing RedWeb’s architecture in a mu
 git clone https://github.com/lakam99/Redweb-Multiplayer.git
 cd Redweb-Multiplayer
 npm install
-node index.js
-````
+npm start
+```
 
-Server runs at `ws://localhost:3000/`
+Open `http://localhost:3001/`; the browser client connects to `ws://localhost:3000/`. Set `HTTP_PORT` and `WS_PORT` to change the listening ports. Requires Node.js 18 or newer; use a maintained LTS version for deployment.
+
+Run `npm test` for a two-client WebSocket integration check.
 
 ---
 
@@ -41,7 +43,6 @@ Server runs at `ws://localhost:3000/`
 | `handlers/JoinHandler.js`       | Handles player joining and registry addition                         |
 | `handlers/ChatHandler.js`       | Sends chat messages to all other clients                             |
 | `handlers/MoveHandler.js`       | Updates and broadcasts player position/vector                        |
-| `handlers/MatchHandler.js`      | Emits messages like match status or win conditions                   |
 | `services/MatchService.js`      | Autonomous logic: match start/end when max players are reached       |
 | `handlers/GetPlayersHandler.js` | Sends sanitized list of players back to the requesting socket        |
 | `handlers/PlayerRegistry.js`    | Tracks connected players using event-driven logic                    |
@@ -99,7 +100,7 @@ Optionally include:
 ### 🧍 Get Players
 
 ```json
-{ "type": "getPlayers" }
+{ "type": "get-players" }
 ```
 
 Returns list of currently joined players.
@@ -108,11 +109,7 @@ Returns list of currently joined players.
 
 ### 🛑 Disconnect
 
-```json
-{ "type": "disconnect" }
-```
-
-Manually trigger player removal (usually automatic on socket close).
+Closing the WebSocket removes the player and broadcasts `{ "type": "player_left", "id": "..." }` to the remaining players.
 
 ---
 
@@ -166,7 +163,7 @@ Backed by `SocketRegistry`, it provides:
 
 ### Match Service
 
-Starts a match timer when lobby is full. Emits `matchStarted` and `matchOver` messages via `MatchHandler`. Can be replaced or extended to support your own win conditions, rounds, etc.
+Starts a match timer when a finite player cap is reached. Emits `match_started` and `match_over` messages. The default cap is unlimited, so configure `registry.maxPlayers` to enable automatic starts.
 
 ---
 

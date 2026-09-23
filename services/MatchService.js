@@ -28,12 +28,19 @@ class MatchService extends SocketService {
     this.active = true;
     registry.broadcast({ type: 'match_started' });
 
-    setTimeout(() => this.endMatch(), this.duration);
+    this.matchTimer = setTimeout(() => this.endMatch(), this.duration);
   }
 
   endMatch() {
     this.active = false;
+    this.matchTimer = null;
     registry.broadcast({ type: 'match_over' });
+  }
+
+  onShutdown() {
+    clearTimeout(this.matchTimer);
+    this.matchTimer = null;
+    super.onShutdown();
   }
 }
 
