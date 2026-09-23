@@ -1,6 +1,6 @@
 # Redweb Multiplayer — Redsea
 
-A runnable multiplayer game and an extension of the [Redweb 0.16.4 API examples](https://redweb.magnisolution.com/llms.txt). It uses one Redweb application to serve the browser client and a `/match` WebSocket route on the same port.
+A runnable multiplayer game and an extension of the [Redweb](https://redweb.magnisolution.com/) 0.16.4 API examples. It uses one Redweb application to serve the browser client and a `/match` WebSocket route on the same port.
 
 ## Run
 
