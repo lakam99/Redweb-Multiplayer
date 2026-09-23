@@ -2,17 +2,31 @@
   "name": "redsea_01",
   "version": "1.0.0",
   "main": "index.js",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:client": "node scripts/build-client.mjs",
+    "pretest": "npm run build:client",
+    "pretest:coverage": "npm run build:client",
+    "test": "node --test",
+    "test:coverage": "node --test --experimental-test-coverage",
     "start": "node index.js",
-    "dev": "NODE_ENV=development node index.js"
+    "dev": "node --watch index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "redweb": "^0.7.4",
-    "uuid": "^11.1.0"
+    "kaboom": "3000.0.1",
+    "redweb": "0.16.4",
+    "redweb-client": "0.3.1",
+    "uuid": "11.1.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12",
+    "playwright-core": "1.63.0",
+    "ws": "8.21.3"
   }
 }

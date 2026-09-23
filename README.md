@@ -1,192 +1,72 @@
-# Redweb Multiplayer – Redsea MVP
+# Redweb Multiplayer — Redsea
 
-**Redsea** is a plug-and-play multiplayer backend engine built on top of [RedWeb](https://www.npmjs.com/package/redweb), offering dynamic WebSocket routing, modular handler logic, and ready-to-extend multiplayer support for indie game developers.
+A runnable multiplayer game and an extension of the [Redweb](https://redweb.magnisolution.com/) 0.16.4 API examples. It uses one Redweb application to serve the browser client and a `/match` WebSocket route on the same port.
 
-This repository serves as an MVP demo showcasing RedWeb’s architecture in a multiplayer context — with real-time lobby management, messaging, and match logic, all using simple JSON over WebSockets.
+## Run
 
----
-
-## 🚀 Features
-
-- 🔌 **WebSocket server** via RedWeb
-- 🧱 **Modular message handling** with RedWeb handlers
-- 🎮 **Player registry** with join/leave hooks and broadcasting
-- ⏱ **Match service** with start/end conditions (auto-timer)
-- 🧠 Built-in event-driven architecture using `SocketRegistry`
-- 🛠 Extendable: add your own logic with clean base classes
-
----
-
-## 📦 Installation
+Requires Node.js 22 or newer for the full build and test workflow.
 
 ```bash
-git clone https://github.com/lakam99/Redweb-Multiplayer.git
-cd Redweb-Multiplayer
-npm install
-node index.js
-````
+npm ci
+npm start
+```
 
-Server runs at `ws://localhost:3000/`
+Open `http://localhost:3000/`. Set `PORT` to change the listener. Open `http://localhost:3000/?room=side` in another browser to enter a separate room. `GET /health` reports route readiness. Run `npm test` for unit, HTTP/WebSocket, and Chromium browser checks; `npm run test:coverage` prints Node's coverage report. The browser test uses Playwright Chromium, local Chrome, or Edge when available and otherwise skips. Run `npx playwright-core install chromium` to install a browser, or set `CHROME_PATH` to select one. CI requires the browser test to run.
 
----
+The browser transport uses [redweb-client 0.3.1](https://www.npmjs.com/package/redweb-client) for connection state, message subscriptions, and bounded reconnection. The client build bundles it with Kaboom and the game into the checked-in `public/game.bundle.js`, so starting the app needs no external CDN. Run `npm run build:client` after changing frontend source; `npm test` rebuilds it automatically. The game owns the `join` and `resume` decisions after each connection opens; commands sent while offline are dropped instead of replayed.
 
-## 🧠 Architecture Overview
+The Node coverage report includes `client/Net.mjs` but does not measure all game and rendering modules executed in Chromium. The browser test verifies canvas startup, room join, and keyboard movement; it is an integration check, not a 100% frontend coverage claim.
 
-### Core Files
+## Redweb features demonstrated
 
-| File                            | Purpose                                                              |
-| ------------------------------- | -------------------------------------------------------------------- |
-| `index.js`                      | Bootstraps the RedWeb `SocketServer`                                 |
-| `DefaultRoute.js`               | Declares the root WebSocket path `/` and loads all handlers/services |
-| `handlers/JoinHandler.js`       | Handles player joining and registry addition                         |
-| `handlers/ChatHandler.js`       | Sends chat messages to all other clients                             |
-| `handlers/MoveHandler.js`       | Updates and broadcasts player position/vector                        |
-| `handlers/MatchHandler.js`      | Emits messages like match status or win conditions                   |
-| `services/MatchService.js`      | Autonomous logic: match start/end when max players are reached       |
-| `handlers/GetPlayersHandler.js` | Sends sanitized list of players back to the requesting socket        |
-| `handlers/PlayerRegistry.js`    | Tracks connected players using event-driven logic                    |
+| API | Use in this project |
+| --- | --- |
+| `defineApp` | Owns one HTTP/WebSocket listener, startup, signals, and shutdown. `createApp({ port: 0, signals: false })` creates an isolated test listener. |
+| `SocketRoute` | Routes `/match` and applies message ordering, heartbeat, message rate, queue, connection, buffer, and payload limits. |
+| `BaseHandler` | Dispatches `join`, `resume`, `get-players`, `move`, `chat`, and `shoot` by message `type`. |
+| `RoomRegistry` | Caps rooms at 100 and players per room at 8. Room broadcasts keep match traffic isolated. |
+| `SessionRegistry` | Holds short-lived player state for reconnects. A server-issued opaque session token expires 30 seconds after disconnect. |
+| `SocketService` | Starts a 30-second match when two players enter a room and releases timers on shutdown. |
+| `SocketRegistry` | Tracks game players separately from WebSocket connections and emits match lifecycle events. |
+| HTTP services | Serves `/health` from the same listener as the static game and WebSocket route. |
 
----
+The browser connects to `/match` on its current origin and attempts `resume` after a dropped connection. Room state and sessions live in one Node process; they are not durable or shared across workers. The game accepts client movement and shooting as a prototype and does not enforce authoritative physics or player authentication.
 
-## 📡 WebSocket Message Types
+Each `/match` route instance owns its player registry and match timers. Separate `createApp()` instances have independent players, rooms, and sessions.
 
-Every handler listens for a `type` field in incoming messages.
+## WebSocket protocol
 
-### 📥 Join (Minimum Payload)
+Connect to `ws://localhost:3000/match`. A room name contains 1–32 letters, digits, underscores, or hyphens. Omit `roomId` for the `lobby` room.
 
 ```json
-{ "type": "join" }
+{ "type": "join", "roomId": "lobby", "position": { "x": 400, "y": 300 } }
 ```
 
-Optionally include:
+The server responds with `{ "type": "joined", "id": "...", "roomId": "lobby", "session": "..." }`. Treat the session as a bearer credential and keep it private. To reconnect within 30 seconds:
 
 ```json
-{
-  "type": "join",
-  "id": "optional-custom-id",
-  "position": { "x": 0, "y": 0, "z": 0 },
-  "vec": { "x": 1, "y": 0, "z": 0 }
-}
+{ "type": "resume", "session": "server-issued-token" }
 ```
 
-> If required fields are missing, the handler will return a meaningful error. Otherwise, defaults like a generated ID or (0,0,0) spawn position may be used.
-
----
-
-### 💬 Chat
+After joining, clients can send:
 
 ```json
-{
-  "type": "chat",
-  "message": "Hello everyone!"
-}
+{ "type": "get-players" }
+{ "type": "move", "position": { "x": 410, "y": 300 }, "vector": { "x": 1, "y": 0 }, "angle": 0 }
+{ "type": "chat", "message": "Hello" }
+{ "type": "shoot", "position": { "x": 410, "y": 300 }, "direction": { "x": 1, "y": 0 } }
 ```
 
----
+The server emits `players_list`, `player_joined`, `player_left`, `player_moved`, `chat`, `player_shot`, `match_started`, and `match_over` to the relevant room. Invalid inputs receive a `{ "type": "error", "message": "..." }` response. A disconnect removes the player from the active room; resuming restores the player state and announces the return.
 
-### 🎮 Move
+## Code map
 
-```json
-{
-  "type": "move",
-  "position": { "x": 5, "y": 0, "z": 2 },
-  "vector": { "x": 0, "y": 0, "z": 1 }
-}
-```
+- `index.js`: deferred application definition and process entry point.
+- `DefaultRoute.js`: Redweb socket route and connection cleanup.
+- `handlers/`: one class per inbound message type, plus player validation and registry.
+- `services/MatchService.js`: route-scoped room timers.
+- `public/js/new/`: browser game and rendering modules.
+- `client/`: redweb-client adapter and browser entry, built with esbuild into `public/game.bundle.js`.
+- `test/`: real browser, HTTP/WebSocket, transport, and registry tests.
 
----
-
-### 🧍 Get Players
-
-```json
-{ "type": "getPlayers" }
-```
-
-Returns list of currently joined players.
-
----
-
-### 🛑 Disconnect
-
-```json
-{ "type": "disconnect" }
-```
-
-Manually trigger player removal (usually automatic on socket close).
-
----
-
-## 🧩 Extendability
-
-Handlers extend `BaseHandler` and can register to a `type` like this:
-
-```js
-class MyHandler extends BaseHandler {
-    constructor() {
-        super('custom_event'); // Listens for { type: "custom_event" }
-    }
-
-    onMessage(socket, message) {
-        // Your logic here
-        socket.sendJson({ type: "response", msg: "Handled!" });
-    }
-}
-```
-
-Services extend `SocketService` and can run game loops or timers:
-
-```js
-class MyGameLoop extends SocketService {
-    constructor() {
-        super('myLoop', 1000); // Run every second
-    }
-
-    onInit(route) {
-        // Access clients, registries, etc.
-    }
-
-    onTick() {
-        // Game logic
-    }
-}
-```
-
----
-
-## 🧠 Behind the Scenes
-
-### Player Registry
-
-Backed by `SocketRegistry`, it provides:
-
-* Event-driven lifecycle (`playerJoined`, `playerLeft`, `maxPlayersReached`)
-* Max player limits
-* Player broadcasting
-* Join/leave validation hooks
-
-### Match Service
-
-Starts a match timer when lobby is full. Emits `matchStarted` and `matchOver` messages via `MatchHandler`. Can be replaced or extended to support your own win conditions, rounds, etc.
-
----
-
-## 📈 Roadmap
-
-* [ ] Route-based lobby IDs (e.g. `/lobby/:id`)
-* [ ] Lobby timeout cleanup
-* [ ] Sample HTML multiplayer client
-* [ ] Built-in matchmaking & queuing
-* [ ] Redis-backed persistence
-
----
-
-## 🧠 Philosophy
-
-Redsea helps you **prototype multiplayer games fast**, using readable, clean JavaScript with full control. No vendor lock-in, no giant SDKs, no mystery boxes.
-
----
-
-## 🛠 Author
-
-Developed by [@lakam99](https://github.com/lakam99)
-Powered by [RedWeb](https://www.npmjs.com/package/redweb)
+Redweb's [application](https://redweb.magnisolution.com/docs/reference/0.16.4/application.md), [socket route](https://redweb.magnisolution.com/docs/reference/0.16.4/api/socketroute.md), [room](https://redweb.magnisolution.com/docs/reference/0.16.4/api/roomregistry.md), and [session](https://redweb.magnisolution.com/docs/reference/0.16.4/api/sessionregistry.md) references explain the underlying APIs.

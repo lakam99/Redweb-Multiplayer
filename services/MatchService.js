@@ -1,39 +1,46 @@
 const { SocketService } = require('redweb');
-const registry = require('../handlers/PlayerRegistry')
 
 class MatchService extends SocketService {
   constructor() {
     super('MatchService');
-    this.active = false;
     this.duration = 30_000;
+    this.matches = new Map();
   }
 
   onInit(route) {
     super.onInit(route);
-
-    // start when player cap hit
-    try {
-      registry.on && registry.on('maxPlayersReached', () => {
-        if (!this.active) this.startMatch();
-      });
-    } catch {}
-
-    // or start if there are already players on init with a finite cap
-    if (Number.isFinite(registry.maxPlayers) && registry.maxPlayers > 0 && registry.items?.length >= registry.maxPlayers) {
-      this.startMatch();
-    }
+    this.onRoomReady = roomId => this.startMatch(roomId);
+    this.onPlayerLeft = roomId => {
+      if (this.registry.inRoom(roomId).length < 2) this.endMatch(roomId);
+    };
   }
 
-  startMatch() {
-    this.active = true;
-    registry.broadcast({ type: 'match_started' });
-
-    setTimeout(() => this.endMatch(), this.duration);
+  bindRegistry(registry) {
+    this.registry = registry;
+    registry.on('roomReady', this.onRoomReady);
+    registry.on('playerLeft', this.onPlayerLeft);
   }
 
-  endMatch() {
-    this.active = false;
-    registry.broadcast({ type: 'match_over' });
+  startMatch(roomId) {
+    if (this.matches.has(roomId)) return;
+    this.registry.broadcast({ type: 'match_started', roomId }, null, roomId);
+    this.matches.set(roomId, setTimeout(() => this.endMatch(roomId), this.duration));
+  }
+
+  endMatch(roomId) {
+    const timer = this.matches.get(roomId);
+    if (!timer) return;
+    clearTimeout(timer);
+    this.matches.delete(roomId);
+    this.registry.broadcast({ type: 'match_over', roomId }, null, roomId);
+  }
+
+  onShutdown() {
+    this.registry?.off('roomReady', this.onRoomReady);
+    this.registry?.off('playerLeft', this.onPlayerLeft);
+    for (const timer of this.matches.values()) clearTimeout(timer);
+    this.matches.clear();
+    super.onShutdown();
   }
 }
 

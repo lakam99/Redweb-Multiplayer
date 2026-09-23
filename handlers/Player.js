@@ -6,6 +6,7 @@ class Player {
     this.socket   = socket;
     this.id       = id;
     this.registry = registry;
+    this.roomId   = data.roomId ?? 'lobby';
 
     this.position = data.position ?? { x: 0, y: 0, z: 0 };
     this.vector   = data.vector   ?? { x: 0, y: 0, z: 0 };
