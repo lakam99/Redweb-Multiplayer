@@ -9,11 +9,15 @@ const { createApp } = require('../index.js');
 const registry = require('../handlers/PlayerRegistry.js');
 const browserPath = [
   process.env.CHROME_PATH,
+  chromium.executablePath(),
   'C:/Program Files/Google/Chrome/Application/chrome.exe',
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
   '/usr/bin/chromium',
   '/usr/bin/google-chrome',
 ].find(path => path && existsSync(path));
+if (process.env.REQUIRE_BROWSER_TEST === '1' && !browserPath) {
+  throw new Error('Chromium is required for the browser test. Run `npx playwright-core install chromium`.');
+}
 
 test('bundled frontend loads and joins the selected room in Chromium',
   { skip: !browserPath }, async () => {

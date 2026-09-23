@@ -4,14 +4,14 @@ A runnable multiplayer game and an extension of the [Redweb 0.16.4 API examples]
 
 ## Run
 
-Requires Node.js 18 or newer. Use a maintained LTS release for deployment.
+Requires Node.js 22 or newer for the full build and test workflow.
 
 ```bash
 npm ci
 npm start
 ```
 
-Open `http://localhost:3000/`. Set `PORT` to change the listener. Open `http://localhost:3000/?room=side` in another browser to enter a separate room. `GET /health` reports route readiness. Run `npm test` for unit, HTTP/WebSocket, and Chromium browser checks; `npm run test:coverage` prints Node's coverage report. The browser test uses local Chrome or Edge when available and otherwise skips; set `CHROME_PATH` to select another Chromium executable.
+Open `http://localhost:3000/`. Set `PORT` to change the listener. Open `http://localhost:3000/?room=side` in another browser to enter a separate room. `GET /health` reports route readiness. Run `npm test` for unit, HTTP/WebSocket, and Chromium browser checks; `npm run test:coverage` prints Node's coverage report. The browser test uses Playwright Chromium, local Chrome, or Edge when available and otherwise skips. Run `npx playwright-core install chromium` to install a browser, or set `CHROME_PATH` to select one. CI requires the browser test to run.
 
 The browser transport uses [redweb-client 0.3.1](https://www.npmjs.com/package/redweb-client) for connection state, message subscriptions, and bounded reconnection. The client build bundles it with Kaboom and the game into the checked-in `public/game.bundle.js`, so starting the app needs no external CDN. Run `npm run build:client` after changing frontend source; `npm test` rebuilds it automatically. The game owns the `join` and `resume` decisions after each connection opens; commands sent while offline are dropped instead of replayed.
 

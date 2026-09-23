@@ -2,6 +2,9 @@
   "name": "redsea_01",
   "version": "1.0.0",
   "main": "index.js",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build:client": "node scripts/build-client.mjs",
     "pretest": "npm run build:client",
