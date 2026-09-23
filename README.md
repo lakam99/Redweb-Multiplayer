@@ -11,7 +11,11 @@ npm ci
 npm start
 ```
 
-Open `http://localhost:3000/`. Set `PORT` to change the listener. Open `http://localhost:3000/?room=side` in another browser to enter a separate room. `GET /health` reports route readiness. Run `npm test` for unit and real HTTP/WebSocket integration checks; `npm run test:coverage` prints Node's coverage report.
+Open `http://localhost:3000/`. Set `PORT` to change the listener. Open `http://localhost:3000/?room=side` in another browser to enter a separate room. `GET /health` reports route readiness. Run `npm test` for unit, HTTP/WebSocket, and Chromium browser checks; `npm run test:coverage` prints Node's coverage report. The browser test uses local Chrome or Edge when available and otherwise skips; set `CHROME_PATH` to select another Chromium executable.
+
+The browser transport uses [redweb-client 0.3.1](https://www.npmjs.com/package/redweb-client) for connection state, message subscriptions, and bounded reconnection. The client build bundles it with Kaboom and the game into the checked-in `public/game.bundle.js`, so starting the app needs no external CDN. Run `npm run build:client` after changing frontend source; `npm test` rebuilds it automatically. The game owns the `join` and `resume` decisions after each connection opens; commands sent while offline are dropped instead of replayed.
+
+The Node coverage report includes `client/Net.mjs` but does not measure all game and rendering modules executed in Chromium. The browser test verifies canvas startup, room join, and keyboard movement; it is an integration check, not a 100% frontend coverage claim.
 
 ## Redweb features demonstrated
 
@@ -59,7 +63,8 @@ The server emits `players_list`, `player_joined`, `player_left`, `player_moved`,
 - `DefaultRoute.js`: Redweb socket route and connection cleanup.
 - `handlers/`: one class per inbound message type, plus player validation and registry.
 - `services/MatchService.js`: route-scoped room timers.
-- `public/js/new/`: browser game, socket connection, and rendering.
-- `test/multiplayer.test.js`: real listener and multiple-client acceptance test.
+- `public/js/new/`: browser game and rendering modules.
+- `client/`: redweb-client adapter and browser entry, built with esbuild into `public/game.bundle.js`.
+- `test/`: real browser, HTTP/WebSocket, transport, and registry tests.
 
 Redweb's [application](https://redweb.magnisolution.com/docs/reference/0.16.4/application.md), [socket route](https://redweb.magnisolution.com/docs/reference/0.16.4/api/socketroute.md), [room](https://redweb.magnisolution.com/docs/reference/0.16.4/api/roomregistry.md), and [session](https://redweb.magnisolution.com/docs/reference/0.16.4/api/sessionregistry.md) references explain the underlying APIs.

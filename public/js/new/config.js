@@ -7,7 +7,6 @@ export const ENTITY_TYPES = {
   bullet: ClientBullet,
 };
 
-export const WS_URL = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/match";
 export const PLAYER_SPEED = 180; // px/s
 export const SIZE = 28;
 export const MAX_HP = 3;

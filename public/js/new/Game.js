@@ -5,7 +5,6 @@ import { setupPlayerInput } from "./PlayerInputManager.js";
 import { setupNetworkHandlers } from "./NetworkHandlers.js";
 import { handleShoot } from "./ShootingManager.js";
 import Net from "./Net.js";
-import { WS_URL } from "./config.js";
 import { randId } from "./utils.js";
 
 export class Game {
@@ -49,7 +48,7 @@ export class Game {
       this.session = null;
       Net.send('join', { id: this.playerId, roomId, position: this.player.position });
     });
-    Net.connect(WS_URL)?.catch(() => console.warn('WebSocket connection failed; retrying'));
+    Net.connect().catch(() => console.warn('WebSocket connection failed; retrying'));
 
     // input
     setupPlayerInput(this.k, this.player, () => this.player.angle, () => handleShoot(this.entityManager, this.player));
