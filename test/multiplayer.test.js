@@ -2,7 +2,6 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const WebSocket = require('ws');
 const { createApp } = require('../index');
-const registry = require('../handlers/PlayerRegistry');
 
 function waitForMessage(socket, type) {
   return new Promise((resolve, reject) => {
@@ -26,6 +25,7 @@ test('Redweb serves HTTP, isolated rooms, match events, and resumable players', 
   const clients = [];
   try {
     await app.run();
+    const registry = app.sockets.routes[0].registry;
     const port = app.server.address().port;
     const health = await fetch(`http://127.0.0.1:${port}/health`);
     assert.deepEqual(await health.json(), { ready: true });
@@ -118,6 +118,34 @@ test('Redweb serves HTTP, isolated rooms, match events, and resumable players', 
   } finally {
     for (const client of clients) client.close();
     await app.shutdown();
-    registry.items.length = 0;
+  }
+});
+
+test('two application instances keep player registries and sessions separate', async () => {
+  const options = { port: 0, signals: false, logger: { log() {}, error() {} } };
+  const firstApp = createApp(options);
+  const secondApp = createApp(options);
+  const sockets = [];
+  try {
+    await Promise.all([firstApp.run(), secondApp.run()]);
+    assert.notStrictEqual(firstApp.sockets.routes[0].registry, secondApp.sockets.routes[0].registry);
+    for (const app of [firstApp, secondApp]) {
+      const socket = new WebSocket(`ws://127.0.0.1:${app.server.address().port}/match`);
+      sockets.push(socket);
+      await new Promise(resolve => socket.once('open', resolve));
+      const joined = waitForMessage(socket, 'joined');
+      socket.send(JSON.stringify({ type: 'join', id: 'same' }));
+      assert.equal((await joined).id, 'same');
+    }
+    assert.equal(firstApp.sockets.routes[0].registry.count(), 1);
+    assert.equal(secondApp.sockets.routes[0].registry.count(), 1);
+    sockets[0].close();
+    await firstApp.shutdown();
+    const players = waitForMessage(sockets[1], 'players_list');
+    sockets[1].send(JSON.stringify({ type: 'get-players' }));
+    assert.deepEqual((await players).players.map(player => player.id), ['same']);
+  } finally {
+    for (const socket of sockets) socket.close();
+    await Promise.all([firstApp.shutdown(), secondApp.shutdown()]);
   }
 });

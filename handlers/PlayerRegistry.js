@@ -85,4 +85,4 @@ class PlayerRegistry extends SocketRegistry {
   }
 }
 
-module.exports = new PlayerRegistry();
+module.exports = { PlayerRegistry };

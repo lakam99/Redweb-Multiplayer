@@ -6,7 +6,6 @@ import { chromium } from 'playwright-core';
 
 const require = createRequire(import.meta.url);
 const { createApp } = require('../index.js');
-const registry = require('../handlers/PlayerRegistry.js');
 const browserPath = [
   process.env.CHROME_PATH,
   chromium.executablePath(),
@@ -25,6 +24,7 @@ test('bundled frontend loads and joins the selected room in Chromium',
     let browser;
     try {
       await app.run();
+      const registry = app.sockets.routes[0].registry;
       browser = await chromium.launch({ executablePath: browserPath, headless: true });
       const page = await browser.newPage();
       const errors = [];
@@ -48,6 +48,5 @@ test('bundled frontend loads and joins the selected room in Chromium',
     } finally {
       await browser?.close();
       await app.shutdown();
-      registry.items.length = 0;
     }
   });

@@ -6,10 +6,11 @@ const { MatchService } = require("./services/MatchService");
 const { GetPlayersHandler } = require("./handlers/GetPlayersHandler");
 const { ShootHandler } = require("./handlers/ShootHandler");
 const { ResumeHandler } = require("./handlers/ResumeHandler");
-const registry = require("./handlers/PlayerRegistry");
+const { PlayerRegistry } = require("./handlers/PlayerRegistry");
 
 class DefaultRoute extends SocketRoute {
     constructor() {
+        const registry = new PlayerRegistry();
         super({
             "path": "/match",
             "handlers": [
@@ -33,12 +34,18 @@ class DefaultRoute extends SocketRoute {
             rooms: { maxRooms: 100, maxMembersPerRoom: 8, maxRoomsPerConnection: 1 },
             sessions: { ttlMs: 30_000, maxSessions: 100 }
         })
+        this.registry = registry;
+        this.services.find(service => service instanceof MatchService).bindRegistry(registry);
+    }
+
+    connectionOpenCallback(socket) {
+        socket.playerRegistry = this.registry;
     }
 
     connectionCloseCallback(socket) {
-        const player = registry.getBySocket(socket);
-        if (player && registry.remove(player)) {
-            registry.broadcast({ type: "player_left", id: player.id }, null, player.roomId);
+        const player = this.registry.getBySocket(socket);
+        if (player && this.registry.remove(player)) {
+            this.registry.broadcast({ type: "player_left", id: player.id }, null, player.roomId);
         }
     }
 }

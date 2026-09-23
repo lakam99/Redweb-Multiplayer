@@ -1,5 +1,4 @@
 const { BaseHandler } = require("redweb");
-const PlayerRegistry = require("./PlayerRegistry");
 
 class GetPlayersHandler extends BaseHandler {
     constructor() {
@@ -7,6 +6,7 @@ class GetPlayersHandler extends BaseHandler {
     }
 
     onMessage(socket, _) {
+        const PlayerRegistry = socket.playerRegistry;
         const player = PlayerRegistry.getBySocket(socket);
         if (!player) {
             socket.sendJson({ type: 'error', message: 'Join first' });

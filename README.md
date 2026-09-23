@@ -32,6 +32,8 @@ The Node coverage report includes `client/Net.mjs` but does not measure all game
 
 The browser connects to `/match` on its current origin and attempts `resume` after a dropped connection. Room state and sessions live in one Node process; they are not durable or shared across workers. The game accepts client movement and shooting as a prototype and does not enforce authoritative physics or player authentication.
 
+Each `/match` route instance owns its player registry and match timers. Separate `createApp()` instances have independent players, rooms, and sessions.
+
 ## WebSocket protocol
 
 Connect to `ws://localhost:3000/match`. A room name contains 1–32 letters, digits, underscores, or hyphens. Omit `roomId` for the `lobby` room.

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const registry = require('../handlers/PlayerRegistry');
+const { PlayerRegistry } = require('../handlers/PlayerRegistry');
 const { validMotion } = require('../handlers/validate');
 
 test('movement validation rejects nonfinite and malformed coordinates', () => {
@@ -11,7 +11,7 @@ test('movement validation rejects nonfinite and malformed coordinates', () => {
 });
 
 test('player registry enforces room capacity and emits base and match events', () => {
-  const previousMax = registry.maxPlayersPerRoom;
+  const registry = new PlayerRegistry();
   registry.maxPlayersPerRoom = 2;
   const events = [];
   const added = player => events.push(`added:${player.id}`);
@@ -35,6 +35,5 @@ test('player registry enforces room capacity and emits base and match events', (
     registry.off('removed', removed);
     registry.off('roomReady', ready);
     registry.items.length = 0;
-    registry.maxPlayersPerRoom = previousMax;
   }
 });

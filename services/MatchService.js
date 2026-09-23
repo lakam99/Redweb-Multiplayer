@@ -1,5 +1,4 @@
 const { SocketService } = require('redweb');
-const registry = require('../handlers/PlayerRegistry')
 
 class MatchService extends SocketService {
   constructor() {
@@ -12,15 +11,19 @@ class MatchService extends SocketService {
     super.onInit(route);
     this.onRoomReady = roomId => this.startMatch(roomId);
     this.onPlayerLeft = roomId => {
-      if (registry.inRoom(roomId).length < 2) this.endMatch(roomId);
+      if (this.registry.inRoom(roomId).length < 2) this.endMatch(roomId);
     };
+  }
+
+  bindRegistry(registry) {
+    this.registry = registry;
     registry.on('roomReady', this.onRoomReady);
     registry.on('playerLeft', this.onPlayerLeft);
   }
 
   startMatch(roomId) {
     if (this.matches.has(roomId)) return;
-    registry.broadcast({ type: 'match_started', roomId }, null, roomId);
+    this.registry.broadcast({ type: 'match_started', roomId }, null, roomId);
     this.matches.set(roomId, setTimeout(() => this.endMatch(roomId), this.duration));
   }
 
@@ -29,12 +32,12 @@ class MatchService extends SocketService {
     if (!timer) return;
     clearTimeout(timer);
     this.matches.delete(roomId);
-    registry.broadcast({ type: 'match_over', roomId }, null, roomId);
+    this.registry.broadcast({ type: 'match_over', roomId }, null, roomId);
   }
 
   onShutdown() {
-    registry.off('roomReady', this.onRoomReady);
-    registry.off('playerLeft', this.onPlayerLeft);
+    this.registry?.off('roomReady', this.onRoomReady);
+    this.registry?.off('playerLeft', this.onPlayerLeft);
     for (const timer of this.matches.values()) clearTimeout(timer);
     this.matches.clear();
     super.onShutdown();

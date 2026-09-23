@@ -1,5 +1,4 @@
 const { BaseHandler } = require('redweb');
-const registry = require('./PlayerRegistry');
 
 class ResumeHandler extends BaseHandler {
   constructor() {
@@ -7,6 +6,7 @@ class ResumeHandler extends BaseHandler {
   }
 
   onMessage(socket, message) {
+    const registry = socket.playerRegistry;
     if (registry.getBySocket(socket) || typeof message.session !== 'string' ||
         !/^[0-9a-f-]{36}$/i.test(message.session)) {
       socket.sendJson({ type: 'error', message: 'Invalid resume request' });

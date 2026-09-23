@@ -1,6 +1,5 @@
 // MoveHandler.js
 const { BaseHandler } = require("redweb");
-const registry        = require("./PlayerRegistry");
 const { validMotion } = require('./validate');
 
 class MoveHandler extends BaseHandler {
@@ -17,6 +16,7 @@ class MoveHandler extends BaseHandler {
    * }
    */
   onMessage(socket, msg = {}) {
+    const registry = socket.playerRegistry;
     if (!validMotion(msg)) {
       socket.sendJson({ type: 'error', message: 'Invalid movement' });
       return;
