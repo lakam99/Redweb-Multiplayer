@@ -14,14 +14,12 @@ export class Game {
     this.entityManager = new EntityManager();
     this.player = null;
     this.playerId = `p_${randId(6)}`;
+    this.session = null;
   }
 
   async start() {
     const k = this.k;
     const { add, rect, text, pos, color, anchor, onUpdate, dt, vec2 } = k;
-
-    // connect
-    try { await Net.connect(WS_URL); } catch (e) { console.warn('WS connect failed, will retry automatically'); }
 
     // create local player
     this.player = this.entityManager.spawn("player", this.playerId, {
@@ -32,19 +30,6 @@ export class Game {
 
     this.player.isLocal = true;
 
-    // join (retry until connected)
-    this.joined = false;
-    const tryJoin = () => {
-      const s = Net.socket;
-      if (this.joined) return;
-      if (s && s.readyState === WebSocket.OPEN) {
-        Net.send("join", { id: this.playerId, position: this.player.position });
-        this.joined = true;
-      }
-    };
-    tryJoin();
-    setInterval(tryJoin, 1000);
-
     // network
     setupNetworkHandlers(
       this.entityManager,
@@ -52,6 +37,19 @@ export class Game {
       (pos, dir) => this.spawnBulletVisual(pos, dir),
       (hp) => {},
     );
+
+    const roomId = new URLSearchParams(location.search).get('room') || 'lobby';
+    Net.on('connected', () => {
+      if (this.session) Net.send('resume', { session: this.session });
+      else Net.send('join', { id: this.playerId, roomId, position: this.player.position });
+    });
+    Net.on('joined', message => { this.session = message.session; });
+    Net.on('error', message => {
+      if (message.message !== 'Session expired or unknown') return;
+      this.session = null;
+      Net.send('join', { id: this.playerId, roomId, position: this.player.position });
+    });
+    Net.connect(WS_URL)?.catch(() => console.warn('WebSocket connection failed; retrying'));
 
     // input
     setupPlayerInput(this.k, this.player, () => this.player.angle, () => handleShoot(this.entityManager, this.player));

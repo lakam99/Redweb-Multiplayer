@@ -5,26 +5,39 @@ class NetClient {
     this.socket = null;
     this.listeners = new Map(); // type -> Set(callback)
     this._url = null;
+    this._retryTimer = null;
   }
 
   connect(url) {
     this._url = url;
-    this.socket = new WebSocket(url);
+    if (this.socket && this.socket.readyState <= WebSocket.OPEN) return;
+    const socket = new WebSocket(url);
+    this.socket = socket;
 
-    this.socket.onmessage = (event) => {
+    socket.onmessage = (event) => {
       let msg;
       try { msg = JSON.parse(event.data); } catch { return; }
-      const list = this.listeners.get(msg.type);
-      if (list) for (const fn of list) try { fn(msg); } catch {}
+      this.emit(msg.type, msg);
     };
 
-    return new Promise((resolve) => {
-      this.socket.onopen = () => resolve();
-      this.socket.onerror = () => resolve();
-      this.socket.onclose = () => {
-        setTimeout(() => { try { this.connect(this._url); } catch {} }, 1500);
+    return new Promise((resolve, reject) => {
+      socket.onopen = () => {
+        this.emit('connected');
+        resolve();
+      };
+      socket.onerror = () => reject(new Error('WebSocket connection failed'));
+      socket.onclose = () => {
+        if (this.socket !== socket) return;
+        this.emit('disconnected');
+        clearTimeout(this._retryTimer);
+        this._retryTimer = setTimeout(() => this.connect(this._url)?.catch(() => {}), 1500);
       };
     });
+  }
+
+  emit(type, message) {
+    const list = this.listeners.get(type);
+    if (list) for (const fn of list) try { fn(message); } catch (error) { console.error(error); }
   }
 
   on(type, fn) {

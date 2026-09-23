@@ -1,9 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { once } = require('node:events');
 const WebSocket = require('ws');
-const { SocketServer } = require('redweb');
-const { DefaultRoute } = require('../DefaultRoute');
+const { createApp } = require('../index');
 const registry = require('../handlers/PlayerRegistry');
 
 function waitForMessage(socket, type) {
@@ -23,27 +21,39 @@ function waitForMessage(socket, type) {
   });
 }
 
-test('Redweb 0.16.4 serves multiplayer messages and removes disconnected players', async () => {
-  const server = new SocketServer({ port: 0, routes: [DefaultRoute], logger: { log() {}, error() {} } });
+test('Redweb serves HTTP, isolated rooms, match events, and resumable players', async () => {
+  const app = createApp({ port: 0, signals: false, logger: { log() {}, error() {} } });
   const clients = [];
   try {
-    if (!server.server.listening) await once(server.server, 'listening');
-    const url = `ws://127.0.0.1:${server.server.address().port}/`;
+    await app.run();
+    const port = app.server.address().port;
+    const health = await fetch(`http://127.0.0.1:${port}/health`);
+    assert.deepEqual(await health.json(), { ready: true });
+    const page = await fetch(`http://127.0.0.1:${port}/`);
+    assert.equal(page.status, 200);
+    assert.match(await page.text(), /Redsea Shooter/);
+    const url = `ws://127.0.0.1:${port}/match`;
     const first = new WebSocket(url);
     clients.push(first);
-    await once(first, 'open');
+    await new Promise(resolve => first.once('open', resolve));
     const firstJoined = waitForMessage(first, 'joined');
     first.send(JSON.stringify({ type: 'join', id: 'first' }));
     assert.equal((await firstJoined).id, 'first');
 
     const second = new WebSocket(url);
     clients.push(second);
-    await once(second, 'open');
+    await new Promise(resolve => second.once('open', resolve));
     const secondJoined = waitForMessage(second, 'joined');
     const playerJoined = waitForMessage(first, 'player_joined');
+    const started = waitForMessage(first, 'match_started');
     second.send(JSON.stringify({ type: 'join', id: 'second' }));
-    assert.equal((await secondJoined).id, 'second');
+    const secondIdentity = await secondJoined;
+    assert.equal(secondIdentity.id, 'second');
+    assert.match(secondIdentity.session, /^[0-9a-f-]{36}$/);
     assert.equal((await playerJoined).player.id, 'second');
+
+    // A match starts when the second player joins the same room.
+    assert.equal((await started).roomId, 'lobby');
 
     const players = waitForMessage(second, 'players_list');
     second.send(JSON.stringify({ type: 'get-players' }));
@@ -53,13 +63,61 @@ test('Redweb 0.16.4 serves multiplayer messages and removes disconnected players
     second.send(JSON.stringify({ type: 'move', position: { x: 4, y: 5 } }));
     assert.equal((await moved).player.position.x, 4);
 
+    const invalid = waitForMessage(second, 'error');
+    second.send(JSON.stringify({ type: 'move', position: { x: 'bad', y: 5 } }));
+    assert.equal((await invalid).message, 'Invalid movement');
+
+    const other = new WebSocket(url);
+    clients.push(other);
+    await new Promise(resolve => other.once('open', resolve));
+    const otherJoined = waitForMessage(other, 'joined');
+    other.send(JSON.stringify({ type: 'join', id: 'other', roomId: 'side' }));
+    assert.equal((await otherJoined).roomId, 'side');
+    const otherPlayers = waitForMessage(other, 'players_list');
+    other.send(JSON.stringify({ type: 'get-players' }));
+    assert.deepEqual((await otherPlayers).players.map(player => player.id), ['other']);
+
+    let leaked = false;
+    const detectLeak = event => {
+      if (JSON.parse(event.data).type === 'chat') leaked = true;
+    };
+    other.addEventListener('message', detectLeak);
+    const chat = waitForMessage(first, 'chat');
+    second.send(JSON.stringify({ type: 'chat', message: 'lobby only' }));
+    assert.equal((await chat).player.message, 'lobby only');
+    await new Promise(resolve => setTimeout(resolve, 30));
+    other.removeEventListener('message', detectLeak);
+    assert.equal(leaked, false);
+
     const left = waitForMessage(first, 'player_left');
+    const over = waitForMessage(first, 'match_over');
     second.close();
     assert.equal((await left).id, 'second');
+    assert.equal((await over).roomId, 'lobby');
     assert.equal(registry.getById('second'), null);
+
+    const resumedSocket = new WebSocket(url);
+    clients.push(resumedSocket);
+    await new Promise(resolve => resumedSocket.once('open', resolve));
+    const resumed = waitForMessage(resumedSocket, 'joined');
+    const rejoined = waitForMessage(first, 'player_joined');
+    resumedSocket.send(JSON.stringify({ type: 'resume', session: secondIdentity.session }));
+    const resumedIdentity = await resumed;
+    assert.equal(resumedIdentity.id, 'second');
+    assert.equal(resumedIdentity.resumed, true);
+    assert.equal((await rejoined).player.id, 'second');
+
+    const takeoverSocket = new WebSocket(url);
+    clients.push(takeoverSocket);
+    await new Promise(resolve => takeoverSocket.once('open', resolve));
+    const takeover = waitForMessage(takeoverSocket, 'joined');
+    takeoverSocket.send(JSON.stringify({ type: 'resume', session: secondIdentity.session }));
+    assert.equal((await takeover).resumed, true);
+    assert.equal(registry.getById('second').socket !== resumedSocket, true);
+    assert.equal(registry.inRoom('lobby').length, 2);
   } finally {
     for (const client of clients) client.close();
-    await server.shutdown();
+    await app.shutdown();
     registry.items.length = 0;
   }
 });

@@ -7,7 +7,12 @@ class GetPlayersHandler extends BaseHandler {
     }
 
     onMessage(socket, _) {
-        const players = PlayerRegistry.getSanitizedList();
+        const player = PlayerRegistry.getBySocket(socket);
+        if (!player) {
+            socket.sendJson({ type: 'error', message: 'Join first' });
+            return;
+        }
+        const players = PlayerRegistry.inRoom(player.roomId).map(p => p.getSanitized());
         socket.sendJson({
             type: 'players_list',
             players

@@ -4,6 +4,7 @@
   "main": "index.js",
   "scripts": {
     "test": "node --test",
+    "test:coverage": "node --test --experimental-test-coverage",
     "start": "node index.js",
     "dev": "NODE_ENV=development node index.js"
   },

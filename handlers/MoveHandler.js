@@ -1,6 +1,7 @@
 // MoveHandler.js
 const { BaseHandler } = require("redweb");
 const registry        = require("./PlayerRegistry");
+const { validMotion } = require('./validate');
 
 class MoveHandler extends BaseHandler {
   constructor() {
@@ -16,6 +17,10 @@ class MoveHandler extends BaseHandler {
    * }
    */
   onMessage(socket, msg = {}) {
+    if (!validMotion(msg)) {
+      socket.sendJson({ type: 'error', message: 'Invalid movement' });
+      return;
+    }
     const player = registry.getBySocket(socket);
     if (!player) {
       socket.sendJson({ type: "error", message: "Player not found" });
@@ -46,7 +51,7 @@ class MoveHandler extends BaseHandler {
       registry.broadcast({
         type:   "player_moved",
         player: player.getSanitized(),
-      }, socket);
+      }, socket, player.roomId);
     }
   }
 }
