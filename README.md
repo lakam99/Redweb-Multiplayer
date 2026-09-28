@@ -1,6 +1,6 @@
 # Redweb Multiplayer — Redsea
 
-A runnable multiplayer game and an extension of the [Redweb](https://redweb.magnisolution.com/) 0.16.4 API examples. It uses one Redweb application to serve the browser client and a `/match` WebSocket route on the same port.
+A runnable multiplayer game and an extension of the [Redweb](https://redweb.magnisolution.com/) 0.16.5 API examples. It uses one Redweb application to serve the browser client and a `/match` WebSocket route on the same port.
 
 ## Run
 
@@ -69,4 +69,4 @@ The server emits `players_list`, `player_joined`, `player_left`, `player_moved`,
 - `client/`: redweb-client adapter and browser entry, built with esbuild into `public/game.bundle.js`.
 - `test/`: real browser, HTTP/WebSocket, transport, and registry tests.
 
-Redweb's [application](https://redweb.magnisolution.com/docs/reference/0.16.4/application.md), [socket route](https://redweb.magnisolution.com/docs/reference/0.16.4/api/socketroute.md), [room](https://redweb.magnisolution.com/docs/reference/0.16.4/api/roomregistry.md), and [session](https://redweb.magnisolution.com/docs/reference/0.16.4/api/sessionregistry.md) references explain the underlying APIs.
+Redweb's [application](https://redweb.magnisolution.com/docs/reference/0.16.5/application.md), [socket route](https://redweb.magnisolution.com/docs/reference/0.16.5/api/socketroute.md), [room](https://redweb.magnisolution.com/docs/reference/0.16.5/api/roomregistry.md), and [session](https://redweb.magnisolution.com/docs/reference/0.16.5/api/sessionregistry.md) references explain the underlying APIs.
