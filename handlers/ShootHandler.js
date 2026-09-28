@@ -1,10 +1,9 @@
 // ShootHandler.js
 
 const { BaseHandler } = require("redweb");
-const registry = require("./PlayerRegistry");
 
 function isVec2(v) {
-  return v && typeof v.x === "number" && typeof v.y === "number";
+  return v && Number.isFinite(v.x) && Number.isFinite(v.y);
 }
 
 class ShootHandler extends BaseHandler {
@@ -13,6 +12,7 @@ class ShootHandler extends BaseHandler {
   }
 
   onMessage(socket, data = {}) {
+    const registry = socket.playerRegistry;
     const player = registry.getBySocket(socket);
     if (!player) {
       socket.sendJson({ type: "error", message: "Player not found" });
@@ -29,7 +29,7 @@ class ShootHandler extends BaseHandler {
         position,
         direction,
       },
-      socket // don't echo to sender
+      socket, player.roomId // don't echo to sender
     );
   }
 }
