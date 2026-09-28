@@ -20,7 +20,7 @@
   "description": "",
   "dependencies": {
     "kaboom": "3000.0.1",
-    "redweb": "0.16.4",
+    "redweb": "^0.16.5",
     "redweb-client": "0.3.1",
     "uuid": "11.1.1"
   },
